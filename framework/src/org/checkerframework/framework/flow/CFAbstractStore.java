@@ -803,7 +803,7 @@ public abstract class CFAbstractStore<V extends CFAbstractValue<V>, S extends CF
      */
     public /*@Nullable*/ V getValue(LocalVariableNode n) {
         Element el = n.getElement();
-        return localVariableValues.get(el);
+        return localVariableValues.get(new FlowExpressions.LocalVariable(el));
     }
 
     /* --------------------------------------------------------- */

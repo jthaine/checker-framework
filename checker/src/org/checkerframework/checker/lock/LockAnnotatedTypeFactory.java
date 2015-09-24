@@ -143,6 +143,13 @@ public class LockAnnotatedTypeFactory
                    AnnotationUtils.areSameIgnoringValues(am, JAVAXGUARDEDBY) ||
                    AnnotationUtils.areSameIgnoringValues(am, JCIPGUARDEDBY);
         }
+        
+        // TODO: it would be better to override AnnotationMirror.equals instead of needing
+        // this method, but that is not convenient given the current structure of the code.
+        @Override
+        protected boolean annotationMirrorsAreEqual(AnnotationMirror a1, AnnotationMirror a2) {
+            return (isGuardedBy(a1) && isGuardedBy(a2)) || super.annotationMirrorsAreEqual(a1, a2);
+        }
 
         @Override
         public boolean isSubtype(AnnotationMirror rhs, AnnotationMirror lhs) {
