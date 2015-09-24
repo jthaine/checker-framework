@@ -1,3 +1,4 @@
+// @skip-test
 import org.checkerframework.common.aliasing.qual.*;
 class TypeRefinement {
 
