@@ -141,6 +141,8 @@ public abstract class CFAbstractStore<V extends CFAbstractValue<V>, S extends CF
         }
     }
 
+    // Overridden by the Lock Checker. Needed so the Lock Checker does
+    // not need to override the entire updateForMethodCall method.
     protected boolean isSideEffectFree(AnnotatedTypeFactory atypeFactory, ExecutableElement method) {
         return PurityUtils.isSideEffectFree(atypeFactory, method);
     }
