@@ -2135,7 +2135,11 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
         }
     }
     */
-    
+
+    // Overridden in the Lock Checker. This method is needed so that the
+    // Lock Checker does not need to override the checkMethodInvocability
+    // method as a whole. The Lock Checker needs the functionality in
+    // checkMethodInvocability, such as the receiver subtype checks.
     protected boolean skipReceiverSubtypeCheck(MethodInvocationTree node,
     		AnnotatedTypeMirror methodDefinitionReceiver,
     		AnnotatedTypeMirror methodCallReceiver) {
