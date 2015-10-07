@@ -140,7 +140,7 @@ public abstract class CFAbstractStore<V extends CFAbstractValue<V>, S extends CF
             thisValue = analysis.createSingleAnnotationValue(a, underlyingType);
         }
     }
-    
+
     protected boolean isSideEffectFree(AnnotatedTypeFactory atypeFactory, ExecutableElement method) {
         return PurityUtils.isSideEffectFree(atypeFactory, method);
     }
@@ -422,7 +422,7 @@ public abstract class CFAbstractStore<V extends CFAbstractValue<V>, S extends CF
             return;
         }
         if (r instanceof FlowExpressions.LocalVariable) {
-            Element localVar = ((FlowExpressions.LocalVariable) r).getElement();
+            FlowExpressions.LocalVariable localVar = (FlowExpressions.LocalVariable) r;
             localVariableValues.remove(localVar);
         } else if (r instanceof FlowExpressions.FieldAccess) {
             FlowExpressions.FieldAccess fieldAcc = (FlowExpressions.FieldAccess) r;
