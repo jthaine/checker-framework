@@ -1,4 +1,3 @@
-
 import org.checkerframework.common.aliasing.qual.*;
 class ReceiverParameterTest {
 

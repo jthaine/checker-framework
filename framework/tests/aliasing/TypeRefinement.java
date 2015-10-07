@@ -1,6 +1,5 @@
 import org.checkerframework.common.aliasing.qual.*;
 class TypeRefinement {
-    class MyClass {}
 
 /**
  * Type refinement is treated in the usual way, except that at
@@ -20,14 +19,14 @@ class TypeRefinement {
 
     // Test cases for the Aliasing type refinement cases below.
     // One method for each exception case. The usual case is tested in every method too.
-    // As annotated in stubfile.astub, MyClass() has type @Unique @NonLeaked.
+    // As annotated in stubfile.astub, String() has type @Unique @NonLeaked.
 
     void rule1() {
-        MyClass unique = new MyClass();
+        String unique = new String();
         // unique is refined to @Unique here, according to the definition.
         isUnique(unique);
 
-        MyClass notUnique = unique; //unique loses its refinement.
+        String notUnique = unique; //unique loses its refinement.
 
         //:: error: (argument.type.incompatible)
         isUnique(unique);
@@ -37,7 +36,7 @@ class TypeRefinement {
     }
 
     void rule2() {
-        @Unique MyClass unique = new MyClass();
+        String unique = new String();
 
         isUnique(unique);
         nonLeaked(unique);
@@ -49,22 +48,22 @@ class TypeRefinement {
     }
 
     void rule3() {
-        @Unique MyClass unique = new MyClass();
+        String unique = new String();
         isUnique(unique);
         leakedToResult(unique);
         isUnique(unique);
 
-        MyClass notUnique = leakedToResult(unique);
+        String notUnique = leakedToResult(unique);
         //:: error: (argument.type.incompatible)
         isUnique(unique);
     }
 
-    void nonLeaked(@NonLeaked MyClass s) {}
-    void leaked(MyClass s) {}
-    MyClass leakedToResult(@LeakedToResult MyClass s) {
+    void nonLeaked(@NonLeaked String s) {}
+    void leaked(String s) {}
+    String leakedToResult(@LeakedToResult String s) {
         return s;
     }
 
-    void isUnique(@NonLeaked @Unique MyClass s) {} //@NonLeaked so it doesn't refine the type of the argument.
+    void isUnique(@NonLeaked @Unique String s) {} //@NonLeaked so it doesn't refine the type of the argument.
 
 }
