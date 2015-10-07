@@ -36,6 +36,7 @@ import java.util.List;
 import java.util.Set;
 import java.util.concurrent.locks.Lock;
 
+import javax.annotation.processing.ProcessingEnvironment;
 import javax.lang.model.element.AnnotationMirror;
 import javax.lang.model.element.Element;
 import javax.lang.model.element.ElementKind;
@@ -64,7 +65,6 @@ import com.sun.source.util.TreePath;
 public class LockVisitor extends BaseTypeVisitor<LockAnnotatedTypeFactory> {
     private final Class<? extends Annotation> checkerGuardedByClass = GuardedBy.class;
     private final Class<? extends Annotation> checkerGuardSatisfiedClass = GuardSatisfied.class;
-    private final Class<? extends Annotation> checkerLockHeldClass = LockHeld.class;
 
     // Note that Javax and JCIP @GuardedBy is used on both methods and objects. For methods they are
     // equivalent to the Checker Framework @Holding annotation.
@@ -98,10 +98,7 @@ public class LockVisitor extends BaseTypeVisitor<LockAnnotatedTypeFactory> {
 
     @Override
     public LockAnnotatedTypeFactory createTypeFactory() {
-        // We need to directly access useFlow from the checker, because this method gets called
-        // by the superclass constructor and a field in this class would not be initialized
-        // yet. Oh the pain.
-        return new LockAnnotatedTypeFactory(checker, true);
+        return new LockAnnotatedTypeFactory(checker);
     }
 
     // Issue an error if a method (explicitly or implicitly) annotated with @MayReleaseLocks has a formal parameter
@@ -116,16 +113,14 @@ public class LockVisitor extends BaseTypeVisitor<LockAnnotatedTypeFactory> {
 
             VariableTree receiver = node.getReceiverParameter();
             if (receiver != null) {
-                if (AnnotationUtils.areSameByClass(atypeFactory.getAnnotatedType(receiver).getAnnotationInHierarchy(GUARDEDBYINACCESSIBLE),
-                        checkerGuardSatisfiedClass)){
+                if (atypeFactory.getAnnotatedType(receiver).hasAnnotation(checkerGuardSatisfiedClass)) {
                     issueGSwithMRLWarning = true;
                 }
             }
 
             if (!issueGSwithMRLWarning) { // Skip this loop if it is already known that the warning must be issued.
                 for(VariableTree vt : node.getParameters()) {
-                    if (AnnotationUtils.areSameByClass(atypeFactory.getAnnotatedType(vt).getAnnotationInHierarchy(GUARDEDBYINACCESSIBLE),
-                            checkerGuardSatisfiedClass)){
+                    if (atypeFactory.getAnnotatedType(vt).hasAnnotation(checkerGuardSatisfiedClass)) {
                         issueGSwithMRLWarning = true;
                         break;
                     }
@@ -204,7 +199,7 @@ public class LockVisitor extends BaseTypeVisitor<LockAnnotatedTypeFactory> {
                             if (translateItselfToThis && lockExpression.equals("itself")) {
                                 lockExpression = "this";
                             }
-                            preconditions.add(Pair.of(lockExpression, checkerLockHeldClass.toString().substring(10 /* "interface " */)));
+                            preconditions.add(Pair.of(lockExpression, LockHeld.class.toString().substring(10 /* "interface " */)));
                         }
                     }
                 }
@@ -219,11 +214,6 @@ public class LockVisitor extends BaseTypeVisitor<LockAnnotatedTypeFactory> {
             AnnotatedTypeMirror valueType, Tree valueTree, /*@CompilerMessageKey*/ String errorKey,
             boolean isLocalVariableAssignement) {
 
-        if (valueType.getKind() == TypeKind.NULL) {
-            // Avoid issuing warnings about 'null' not matching the type of the variable.
-            return;
-        }
-
         Kind valueTreeKind = valueTree.getKind();
 
         switch(valueTreeKind) {
@@ -231,7 +221,7 @@ public class LockVisitor extends BaseTypeVisitor<LockAnnotatedTypeFactory> {
             case NEW_ARRAY:
                 // Avoid issuing warnings for: @GuardedBy(<something>) Object o = new Object();
                 // Do NOT do this if the LHS is @GuardedByBottom.
-                if (!AnnotationUtils.areSameIgnoringValues(varType.getAnnotationInHierarchy(GUARDEDBYINACCESSIBLE), GUARDEDBYBOTTOM))
+                if (!varType.hasAnnotation(GuardedByBottom.class))
                     return;
                 break;
             case INT_LITERAL:
@@ -243,7 +233,7 @@ public class LockVisitor extends BaseTypeVisitor<LockAnnotatedTypeFactory> {
             case STRING_LITERAL:
                 // Avoid issuing warnings for: @GuardedBy(<something>) Object o; o = <some literal>;
                 // Do NOT do this if the LHS is @GuardedByBottom.
-                if (!AnnotationUtils.areSameIgnoringValues(varType.getAnnotationInHierarchy(GUARDEDBYINACCESSIBLE), GUARDEDBYBOTTOM))
+                if (!varType.hasAnnotation(GuardedByBottom.class))
                     return;
                 return;
             case NULL_LITERAL: // Don't return in the case of NULL_LITERAL since the check must be made that the LHS is @GuardedByBottom.
@@ -258,9 +248,10 @@ public class LockVisitor extends BaseTypeVisitor<LockAnnotatedTypeFactory> {
         // assignment to the variable annotated with @GuardedByInaccessible. See the Lock Checker manual chapter discussion
         // on the @GuardedByInaccessible annotation for more details.
         // The same behavior applies to @GuardSatisfied.
-        if (AnnotationUtils.areSameIgnoringValues(varType.getAnnotationInHierarchy(GUARDEDBYINACCESSIBLE), GUARDEDBYINACCESSIBLE) ||
-            AnnotationUtils.areSameIgnoringValues(varType.getAnnotationInHierarchy(GUARDEDBYINACCESSIBLE), GUARDSATISFIED)) {
-            if (AnnotationUtils.areSameIgnoringValues(valueType.getAnnotationInHierarchy(GUARDEDBYINACCESSIBLE), GUARDEDBY)) {
+        // TODO: Document in the manual.
+        if (varType.hasAnnotation(GuardedByInaccessible.class) ||
+            varType.hasAnnotation(GuardSatisfied.class)) {
+            if (valueType.hasAnnotation(GuardedBy.class)) {
                 ExpressionTree tree = (ExpressionTree) valueTree;
 
                 checkPreconditions(tree,
@@ -318,9 +309,10 @@ public class LockVisitor extends BaseTypeVisitor<LockAnnotatedTypeFactory> {
         }
     }
 
-    // Ensures that subclass methods require a subset of the locks that a parent class method requires
-    // Additionally ensures that subclass methods use @HoldingOnEntry (and not @Holding) if the parent
-    // class method uses @HoldingOnEntry.
+    /**
+     *  Ensures that subclass methods are annotated with a stronger or equally strong side effect annotation
+     *  than the parent class method.
+     */
     @Override
     protected boolean checkOverride(MethodTree overriderTree,
             AnnotatedDeclaredType enclosingType,
@@ -328,26 +320,12 @@ public class LockVisitor extends BaseTypeVisitor<LockAnnotatedTypeFactory> {
             AnnotatedDeclaredType overriddenType,
             Void p) {
 
-        // Check @Holding overrides
-
-        List<String> overriderLocks = atypeFactory.methodHolding(TreeUtils.elementFromDeclaration(overriderTree));
-        List<String> overriddenLocks = atypeFactory.methodHolding(overridden.getElement());
-
         boolean isValid = true;
-
-        if (!overriderLocks.isEmpty()) {
-            if (!overriddenLocks.containsAll(overriderLocks)) {
-                isValid = false;
-                reportFailure("override.holding.invalid", overriderTree, enclosingType, overridden, overriddenType, overriderLocks, overriddenLocks);
-            }
-        }
-
-        // Check side effect annotation overrides
 
         SideEffectAnnotation seaOfOverriderMethod = atypeFactory.methodSideEffectAnnotation(TreeUtils.elementFromDeclaration(overriderTree), false);
         SideEffectAnnotation seaOfOverridenMethod = atypeFactory.methodSideEffectAnnotation(overridden.getElement(), false);
 
-        if (seaOfOverriderMethod.ordinal() < seaOfOverridenMethod.ordinal()) {
+        if (atypeFactory.isWeaker(seaOfOverriderMethod, seaOfOverridenMethod)) {
             isValid = false;
             reportFailure("override.sideeffect.invalid", overriderTree, enclosingType, overridden, overriddenType, null, null);
         }
@@ -408,16 +386,24 @@ public class LockVisitor extends BaseTypeVisitor<LockAnnotatedTypeFactory> {
             }
 
             if (expr != null && invokedElement != null && receiverAtm != null) {
-                boolean skipCheckPreconditions = false;
-
                 AnnotationMirror gb = receiverAtm.getAnnotationInHierarchy(GUARDEDBYINACCESSIBLE);
                 if (gb != null) {
                     if (AnnotationUtils.areSameByClass( gb, checkerGuardedByClass) ||
                         AnnotationUtils.areSameByClass( gb, javaxGuardedByClass) ||
                         AnnotationUtils.areSameByClass( gb, jcipGuardedByClass)) {
-                        // Do nothing.
+                        // It is critical that if receiverIsThatOfEnclosingMethod is true,
+                        // generatePreconditionsBasedOnGuards translate the expression
+                        // "itself" to "this". That's because right now we know that, since
+                        // we are dealing with the receiver of the method, "itself" corresponds
+                        // to "this". However once checkPreconditions is called, that
+                        // knowledge is lost and it will regards "itself" as referring to
+                        // the variable the precondition we are about to add is attached to.
+
+                        checkPreconditions(expr, invokedElement, expr.getKind() == Tree.Kind.METHOD_INVOCATION,
+                            generatePreconditionsBasedOnGuards(receiverAtm,
+                                    receiverIsThatOfEnclosingMethod /* see comment above */));
                     } else if (AnnotationUtils.areSameByClass(gb, checkerGuardSatisfiedClass)){
-                        skipCheckPreconditions = true; // Can always dereference if type is @GuardSatisfied
+                        // Can always dereference if type is @GuardSatisfied
                     } else {
                         // Can never dereference for any other types in the @GuardedBy hierarchy
                         String annotationName = gb.toString();
@@ -428,20 +414,6 @@ public class LockVisitor extends BaseTypeVisitor<LockAnnotatedTypeFactory> {
                                 annotationName), tree);
                         return;
                     }
-                }
-
-                if (skipCheckPreconditions == false) {
-                    // It is critical that if receiverIsThatOfEnclosingMethod is true,
-                    // generatePreconditionsBasedOnGuards translate the expression
-                    // "itself" to "this". That's because right now we know that, since
-                    // we are dealing with the receiver of the method, "itself" corresponds
-                    // to "this". However once checkPreconditions is called, that
-                    // knowledge is lost and it will regards "itself" as referring to
-                    // the variable the precondition we are about to add is attached to.
-
-                    checkPreconditions(expr, invokedElement, expr.getKind() == Tree.Kind.METHOD_INVOCATION,
-                    generatePreconditionsBasedOnGuards(receiverAtm,
-                            receiverIsThatOfEnclosingMethod /* see comment above */));
                 }
             }
         }
@@ -540,7 +512,7 @@ public class LockVisitor extends BaseTypeVisitor<LockAnnotatedTypeFactory> {
 
         SideEffectAnnotation seaOfContainingMethod = atypeFactory.methodSideEffectAnnotation(methodElement, false);
 
-        if (seaOfInvokedMethod.ordinal() < seaOfContainingMethod.ordinal()) {
+        if (atypeFactory.isWeaker(seaOfInvokedMethod, seaOfContainingMethod)) {
             checker.report(Result.failure(
                     "method.guarantee.violated",
                     methodElement.toString(),
@@ -554,11 +526,11 @@ public class LockVisitor extends BaseTypeVisitor<LockAnnotatedTypeFactory> {
     // has a type that implements the java.util.concurrent.locks.Lock inteface.
     @Override
     public Void visitSynchronized(SynchronizedTree node, Void p) {
-        LockAnalysis analysis = ((LockChecker)checker).getAnalysis();
+        ProcessingEnvironment processingEnvironment = checker.getProcessingEnvironment();
 
-        javax.lang.model.util.Types types = analysis.getTypes();
+        javax.lang.model.util.Types types = processingEnvironment.getTypeUtils();
 
-        TypeMirror lockInterfaceTypeMirror = TypesUtils.typeFromClass(types, analysis.getEnv().getElementUtils(), Lock.class);
+        TypeMirror lockInterfaceTypeMirror = TypesUtils.typeFromClass(types, processingEnvironment.getElementUtils(), Lock.class);
 
         TypeMirror expressionType = types.erasure(atypeFactory.getAnnotatedType(node.getExpression()).getUnderlyingType());
 
