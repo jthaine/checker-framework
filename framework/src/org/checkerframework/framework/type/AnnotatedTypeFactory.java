@@ -2375,7 +2375,9 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
     /**
      * Returns the actual annotation mirror used to annotate this type, whose
      * name equals the passed annotationName if one exists, null otherwise. This
-     * is the private implementation of the same-named, public method.
+     * is the protected implementation of the same-named, public method.
+     * It is protected rather than private because the Lock Checker needs to
+     * override it.
      */
     protected AnnotationMirror getDeclAnnotation(Element elt,
             /*@Interned*/ String annoName, boolean checkAliases) {

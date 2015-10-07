@@ -1031,7 +1031,7 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
                 		 nodeNode instanceof ImplicitThisLiteralNode ||
                 		 nodeNode instanceof ThisLiteralNode) {
                 	Receiver internalReceiver = FlowExpressions.internalReprOf(atypeFactory, nodeNode, false);
-                	
+
                     flowExprContext = new FlowExpressionContext(
                             internalReceiver, null, checker.getContext());
                 }
@@ -1050,7 +1050,6 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
 
                     expr = FlowExpressionParseUtil.parse(expression,
                             flowExprContext, getCurrentPath());
-
                     if (expr == null && itselfMatcher.matches()) { // There is no variable, class, etc. named "itself"
                         expr = FlowExpressions.internalReprOf(atypeFactory,
                                 nodeNode);
@@ -2135,7 +2134,17 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
         }
     }
     */
-    
+
+    protected boolean skipReceiverSubtypeCheck(MethodInvocationTree node,
+    		AnnotatedTypeMirror methodDefinitionReceiver,
+    		AnnotatedTypeMirror methodCallReceiver) {
+    	return false;
+    }
+
+    // Overridden in the Lock Checker. This method is needed so that the
+    // Lock Checker does not need to override the checkMethodInvocability
+    // method as a whole. The Lock Checker needs the functionality in
+    // checkMethodInvocability, such as the receiver subtype checks.
     protected boolean skipReceiverSubtypeCheck(MethodInvocationTree node,
     		AnnotatedTypeMirror methodDefinitionReceiver,
     		AnnotatedTypeMirror methodCallReceiver) {
