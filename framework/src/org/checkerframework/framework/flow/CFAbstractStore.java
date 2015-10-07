@@ -25,6 +25,8 @@ import org.checkerframework.framework.type.AnnotatedTypeFactory;
 import org.checkerframework.javacutil.AnnotationUtils;
 import org.checkerframework.javacutil.Pair;
 
+import com.sun.tools.javac.code.Type;
+
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -55,10 +57,16 @@ public abstract class CFAbstractStore<V extends CFAbstractValue<V>, S extends CF
     protected final CFAbstractAnalysis<V, S, ?> analysis;
 
     /**
-     * Information collected about local variables, which are identified by the
-     * corresponding element.
+     * Information collected about local variables.
+     * FlowExpressions.LocalVariable is used as the key instead of
+     * Element because distinct elements may refer to the
+     * same local variable and Element.hashCode cannot thus
+     * be reliably used to look up a local variable.
+     * FlowExpressions.LocalVariable uses an Element to
+     * store information about a local variable but it implements
+     * its own versions of the hashCode and equals methods.
      */
-    protected final Map<FlowExpressions.LocalVariable, V> localVariableValues;
+    protected Map<FlowExpressions.LocalVariable, V> localVariableValues;
 
     /**
      * Information collected about the current object.
@@ -141,8 +149,16 @@ public abstract class CFAbstractStore<V extends CFAbstractValue<V>, S extends CF
         }
     }
 
-    // Overridden by the Lock Checker. Needed so the Lock Checker does
-    // not need to override the entire updateForMethodCall method.
+    /*
+     * Indicates whether the given method is side-effect-free as far as the
+     * current store is concerned. 
+     * In some cases, a store for a checker allows for other mechanisms to specify
+     * whether a method is side-effect-free. For example, unannotated methods may
+     * be considered side-effect-free by default.
+     *
+     * @param atypeFactory     the type factory used to retrieve annotations on the method element
+     * @param method           the method element
+     */
     protected boolean isSideEffectFree(AnnotatedTypeFactory atypeFactory, ExecutableElement method) {
         return PurityUtils.isSideEffectFree(atypeFactory, method);
     }
@@ -738,7 +754,7 @@ public abstract class CFAbstractStore<V extends CFAbstractValue<V>, S extends CF
      * <li value="1">Remove any abstract values for field accesses <em>b.g</em>
      * where {@code localVar} might alias any expression in the receiver
      * <em>b</em>.
-     * <li value="1">Remove any abstract values for array accesses <em>a[i]</em>
+     * <li value="2">Remove any abstract values for array accesses <em>a[i]</em>
      * where {@code localVar} might alias the receiver <em>a</em>.
      * <li value="3">Remove any information about pure method calls where the
      * receiver or any of the parameters contains {@code localVar}.
