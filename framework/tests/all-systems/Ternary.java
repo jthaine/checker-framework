@@ -1,3 +1,4 @@
+import org.checkerframework.checker.lock.qual.GuardSatisfied;
 import com.sun.tools.javac.code.Symbol;
 import com.sun.tools.javac.code.Symbol.*;
 
@@ -40,7 +41,7 @@ class Ternary {
     }
 
     void generic(boolean b, Generic<String> p) {
-        Generic<String> s = b ? p : null;
+        @GuardSatisfied Generic<String> s = b ? p : null;
     }
 
     void primarray(boolean b) {

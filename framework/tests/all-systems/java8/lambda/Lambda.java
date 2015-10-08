@@ -1,3 +1,4 @@
+import org.checkerframework.checker.lock.qual.GuardSatisfied;
 
 // see also the test for Issue450
 // Test file for lambda syntax
@@ -13,7 +14,7 @@ interface Function<T, R> {
     R apply(T t);
 }
 interface Consumer<T> {
-    void consume(T t);
+    void consume(@GuardSatisfied T t);
 }
 interface BiFunction<T, U, R> {
     R apply(T t, U u);

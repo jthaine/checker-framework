@@ -717,10 +717,6 @@ public class MultiGraphQualifierHierarchy extends QualifierHierarchy {
         }
         return newglbs;
     }
-    
-    protected boolean annotationMirrorsAreEqual(AnnotationMirror a1, AnnotationMirror a2) {
-        return a1.equals(a2);
-    }
 
     private AnnotationMirror findGlb(AnnotationMirror a1, AnnotationMirror a2) {
         if (isSubtype(a1, a2))
@@ -735,7 +731,7 @@ public class MultiGraphQualifierHierarchy extends QualifierHierarchy {
 
         Set<AnnotationMirror> outset = AnnotationUtils.createAnnotationSet();
         for (AnnotationMirror a1Sub : supertypesGraph.keySet()) {
-            if (isSubtype(a1Sub, a1) && !annotationMirrorsAreEqual(a1Sub, a1)) {
+            if (isSubtype(a1Sub, a1) && !a1Sub.equals(a1)) {
                 AnnotationMirror a1lb = findGlb(a1Sub, a2);
                 if (a1lb != null)
                     outset.add(a1lb);

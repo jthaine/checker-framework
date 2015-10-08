@@ -1,4 +1,5 @@
 import java.lang.annotation.ElementType;
+import org.checkerframework.checker.lock.qual.GuardSatisfied;
 
 class MyEnumSet<E extends Enum<E>> {}
 
@@ -13,18 +14,18 @@ class Enumeration {
 
   <E extends Enum<E>> void mtv(Class<E> p) {}
 
-  <T extends Object> T checkNotNull(T ref) { return ref; }
+  <T extends Object> @GuardSatisfied T checkNotNull(@GuardSatisfied T ref) { return ref; }
 
-  <T extends Object, S extends Object> T checkNotNull2(T ref, S ref2) { return ref; }
+  <T extends Object, S extends Object> @GuardSatisfied T checkNotNull2(@GuardSatisfied T ref, @GuardSatisfied S ref2) { return ref; }
 
   class Test<T extends Enum<T>> {
     void m(Class<T> p) {
       checkNotNull(p);
     }
 
-    public <SSS extends Object> SSS firstNonNull(SSS first, SSS second) {
+    public <SSS extends Object> @GuardSatisfied SSS firstNonNull(@GuardSatisfied SSS first, @GuardSatisfied SSS second) {
       @SuppressWarnings("nullness:known.nonnull")
-      SSS res = first != null ? first : checkNotNull(second);
+      @GuardSatisfied SSS res = first != null ? first : checkNotNull(second);
       return res;
     }
   }

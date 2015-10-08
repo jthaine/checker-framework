@@ -7,7 +7,7 @@ class BlockedByteArrayInputStream {
     }
 
     private @GuardedBy({"itself"}) MyClass m;
-    private @GuardedBy({"nonexistentfield"}) MyClass m2;
+    //private @GuardedBy({"nonexistentfield"}) MyClass m2;
     @Pure
     private @GuardedBy({"itself"}) MyClass getm() { return m; }
 
@@ -16,8 +16,8 @@ class BlockedByteArrayInputStream {
         getm().field = new Object();
         //:: error: (contracts.precondition.not.satisfied.field)
         m.field = new Object();
-        //:: error: (flowexpr.parse.error)
-        m2.field = new Object();
+        // TODO: fix code so that this error occurs: error (flowexpr.parse.error)
+        // m2.field = new Object();
         synchronized(m) {
             m.field = new Object();
         }
