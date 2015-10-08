@@ -359,7 +359,9 @@ void unboxing() {
 
     //:: error: (contracts.precondition.not.satisfied.field)
     c = c + b; // Syntactic sugar for c = new Integer(c.intValue() + b.intValue()), hence 'lock' must be held.
-    //:: error: (contracts.precondition.not.satisfied.field)
+
+    // TODO: Change the Lock Checker so that it is less noisy. Currently it generates both the following two errors for the same line of code.
+    //:: error: (contracts.precondition.not.satisfied) :: error: (contracts.precondition.not.satisfied.field)
     c = new Integer(c.intValue() + b.intValue()); // The de-sugared version
 
     synchronized(lock) {
@@ -369,6 +371,8 @@ void unboxing() {
 
     //:: error: (contracts.precondition.not.satisfied.field)
     a = b; // TODO: This assignment between two reference types should not require a lock to be held. See the explanation in LockVisitor.checkAccess for more information.
+    // TODO: the Lock Checker should NOT generate this error because b and c have matching types.
+    //:: error: (contracts.precondition.not.satisfied.field)
     b = c; // OK
 }
 

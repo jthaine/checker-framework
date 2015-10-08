@@ -23,7 +23,6 @@ import org.checkerframework.javacutil.AnnotationUtils;
 import org.checkerframework.javacutil.ErrorReporter;
 import org.checkerframework.javacutil.Pair;
 
-import java.lang.annotation.Annotation;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
@@ -97,12 +96,6 @@ public class LockAnnotatedTypeFactory
         return new LockTransfer((LockAnalysis) analysis,(LockChecker)this.checker);
     }
 
-    protected AnnotationMirror getDeclAnnotationNoAliases(Element elt,
-            Class<? extends Annotation> anno) {
-        String annoName = anno.getCanonicalName().intern();
-        return getDeclAnnotation(elt, annoName, false);
-    }
-
     class LockQualifierHierarchy extends MultiGraphQualifierHierarchy {
 
         public LockQualifierHierarchy(MultiGraphFactory f) {
@@ -141,6 +134,7 @@ public class LockAnnotatedTypeFactory
         // For caching results of glbs
         private Map<AnnotationPair, AnnotationMirror> glbs = null;
         
+        // Same contents as in AnnotatedTypeFactory.java
         @Override
         public AnnotationMirror greatestLowerBound(AnnotationMirror a1, AnnotationMirror a2) {
             if (AnnotationUtils.areSameIgnoringValues(a1, a2))
@@ -152,6 +146,7 @@ public class LockAnnotatedTypeFactory
             return glbs.get(pair);
         }
         
+        // Same contents as in AnnotatedTypeFactory.java
         private Map<AnnotationPair, AnnotationMirror>  calculateGlbs() {
             Map<AnnotationPair, AnnotationMirror> newglbs = new HashMap<AnnotationPair, AnnotationMirror>();
             for (AnnotationMirror a1 : supertypesGraph.keySet()) {
@@ -170,6 +165,8 @@ public class LockAnnotatedTypeFactory
             return newglbs;
         }
 
+        // Same contents as in AnnotatedTypeFactory.java except for this line:
+        // if (isSubtype(a1Sub, a1) && !((isGuardedBy(a1Sub) && isGuardedBy(a1)) || a1Sub.equals(a1))) {
         private AnnotationMirror findGlb(AnnotationMirror a1, AnnotationMirror a2) {
             if (isSubtype(a1, a2))
                 return a1;
@@ -183,7 +180,7 @@ public class LockAnnotatedTypeFactory
 
             Set<AnnotationMirror> outset = AnnotationUtils.createAnnotationSet();
             for (AnnotationMirror a1Sub : supertypesGraph.keySet()) {
-                if (isSubtype(a1Sub, a1) && !((isGuardedBy(a1) && isGuardedBy(a2)) || a1Sub.equals(a1))) {
+                if (isSubtype(a1Sub, a1) && !((isGuardedBy(a1Sub) && isGuardedBy(a1)) || a1Sub.equals(a1))) {
                     AnnotationMirror a1lb = findGlb(a1Sub, a2);
                     if (a1lb != null)
                         outset.add(a1lb);
@@ -204,6 +201,7 @@ public class LockAnnotatedTypeFactory
             return null;
         }
 
+        // Same contents as in AnnotatedTypeFactory.java
         // remove all subtypes of elements contained in the set
         private Set<AnnotationMirror> findGreatestTypes(Set<AnnotationMirror> inset) {
             Set<AnnotationMirror> outset = AnnotationUtils.createAnnotationSet();
@@ -333,7 +331,7 @@ public class LockAnnotatedTypeFactory
         return SideEffectAnnotation.MAYRELEASELOCKS;
     }
 
-    private static class AnnotationPair {
+    private static class AnnotationPair { // Same contents as in AnnotatedTypeFactory.java
         public final AnnotationMirror a1;
         public final AnnotationMirror a2;
         private int hashCode = -1;
