@@ -41,7 +41,6 @@ import javax.lang.model.element.AnnotationMirror;
 import javax.lang.model.element.Element;
 import javax.lang.model.element.ElementKind;
 import javax.lang.model.element.ExecutableElement;
-import javax.lang.model.type.TypeKind;
 import javax.lang.model.type.TypeMirror;
 
 import com.sun.source.tree.ArrayAccessTree;
@@ -242,15 +241,12 @@ public class LockVisitor extends BaseTypeVisitor<LockAnnotatedTypeFactory> {
 
         boolean skipSubtypeCheck = false;
 
-        // Assigning a value with a @GuardedBy annotation to a variable with a @GuardedByInaccessible annotation is always
-        // legal. However as a precaution we verify that the locks specified in the @GuardedBy annotation are held,
-        // since this is our last chance to check anything before the @GuardedBy information is lost in the
-        // assignment to the variable annotated with @GuardedByInaccessible. See the Lock Checker manual chapter discussion
-        // on the @GuardedByInaccessible annotation for more details.
-        // The same behavior applies to @GuardSatisfied.
-        // TODO: Document in the manual.
-        if (varType.hasAnnotation(GuardedByInaccessible.class) ||
-            varType.hasAnnotation(GuardSatisfied.class)) {
+        // Assigning a value with a @GuardedBy annotation to a variable with a @GuardSatisfied annotation is always
+        // legal. However this is our last chance to check anything before the @GuardedBy information is lost in the
+        // assignment to the variable annotated with @GuardSatisfied. See the Lock Checker manual chapter discussion
+        // on the @GuardSatisfied annotation for more details.
+        // TODO: Make the same behavior apply to @GuardedByInaccessible and document that in the manual.
+        if (varType.hasAnnotation(GuardSatisfied.class)) {
             if (valueType.hasAnnotation(GuardedBy.class)) {
                 ExpressionTree tree = (ExpressionTree) valueTree;
 

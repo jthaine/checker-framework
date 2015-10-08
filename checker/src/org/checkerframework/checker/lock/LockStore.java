@@ -5,6 +5,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 */
 
 import javax.lang.model.element.AnnotationMirror;
+import javax.lang.model.element.Element;
 import javax.lang.model.element.ExecutableElement;
 
 import org.checkerframework.checker.lock.LockAnnotatedTypeFactory.SideEffectAnnotation;
