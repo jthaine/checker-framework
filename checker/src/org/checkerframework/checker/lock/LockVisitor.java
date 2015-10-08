@@ -28,16 +28,19 @@ import org.checkerframework.framework.source.Result;
 import org.checkerframework.framework.type.AnnotatedTypeMirror;
 import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedDeclaredType;
 import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedExecutableType;
+import org.checkerframework.framework.util.AnnotatedTypes;
 import org.checkerframework.framework.util.FlowExpressionParseUtil;
 import org.checkerframework.framework.util.FlowExpressionParseUtil.FlowExpressionContext;
 import org.checkerframework.framework.util.FlowExpressionParseUtil.FlowExpressionParseException;
 import org.checkerframework.javacutil.AnnotationUtils;
+import org.checkerframework.javacutil.ElementUtils;
 import org.checkerframework.javacutil.InternalUtils;
 import org.checkerframework.javacutil.Pair;
 import org.checkerframework.javacutil.TreeUtils;
 import org.checkerframework.javacutil.TypesUtils;
 
 import java.lang.annotation.Annotation;
+import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -218,7 +221,7 @@ public class LockVisitor extends BaseTypeVisitor<LockAnnotatedTypeFactory> {
 
         return preconditions;
     }
-    
+
     @Override
     protected void checkAccess(IdentifierTree node, Void p) {
         AnnotatedTypeMirror atm = atypeFactory.getAnnotatedType(node);
@@ -269,6 +272,7 @@ public class LockVisitor extends BaseTypeVisitor<LockAnnotatedTypeFactory> {
         // on the @GuardSatisfied annotation for more details.
         // TODO: Make the same behavior apply to @GuardedByInaccessible and document that in the manual.
         if (varType.hasAnnotation(GuardSatisfied.class)) {
+            // TODO: Make sure the RHS can be @GuardSatisfied with a different index when matching method formal parameters to actual parameters.
             if (valueType.hasAnnotation(GuardedBy.class)) {
                 ExpressionTree tree = (ExpressionTree) valueTree;
 
@@ -280,7 +284,7 @@ public class LockVisitor extends BaseTypeVisitor<LockAnnotatedTypeFactory> {
                 skipSubtypeCheck = true;
             }
         }
-        
+
         // If the LHS is a boxed primitive and the RHS is a primitive or vice-versa, skip the subtype check, since the conversion between
         // the two types is allowed as long as the appropriate locks are held on the boxed primitives, which is checked in visitIdentifier.
         if ((TypesUtils.isBoxedPrimitive(varType.getUnderlyingType()) && TypesUtils.isPrimitive(valueType.getUnderlyingType())) ||
@@ -396,11 +400,11 @@ public class LockVisitor extends BaseTypeVisitor<LockAnnotatedTypeFactory> {
             Element invokedElement = TreeUtils.elementFromUse(expr);
 
             boolean boxedPrimitive = false;
-            
+
             if (treeKind == Kind.IDENTIFIER) {
                 TypeMirror type = InternalUtils.typeOf(expr);
                 if (type != null && TypesUtils.isBoxedPrimitive(type)) {
-                    boxedPrimitive = true;                    
+                    boxedPrimitive = true;
                 }
             }
 
@@ -538,6 +542,8 @@ public class LockVisitor extends BaseTypeVisitor<LockAnnotatedTypeFactory> {
     // on the called method causes the side effect guarantee of the enclosing method
     // to be violated. For example, a method annotated with @ReleasesNoLocks may not
     // call a method annotated with @MayReleaseLocks.
+    // Also check that matching @GuardSatisfied(index) on a method's formal return type/receiver/parameters matches
+    // those in corresponding locations on the method call site.
     @Override
     public Void visitMethodInvocation(MethodInvocationTree node, Void p) {
 
@@ -557,6 +563,118 @@ public class LockVisitor extends BaseTypeVisitor<LockAnnotatedTypeFactory> {
                     "method.guarantee.violated",
                     methodElement.toString(),
                     TreeUtils.elementFromUse(node).toString()), node);
+        }
+
+        // Check that matching @GuardSatisfied(index) on a method's formal return type/receiver/parameters matches
+        // those in corresponding locations on the method call site.
+
+        Pair<AnnotatedExecutableType, List<AnnotatedTypeMirror>> mfuPair = atypeFactory.methodFromUse(node);
+        AnnotatedExecutableType invokedMethod = mfuPair.first;
+
+        List<AnnotatedTypeMirror> requiredArgs =
+            AnnotatedTypes.expandVarArgs(atypeFactory, invokedMethod, node.getArguments());
+
+        // Index on @GuardSatisfied at each location. -1 when no @GuardSatisfied annotation was present.
+        // The first two elements of the array are reserved for the return type and the receiver.
+        int guardSatisfiedIndex[] = new int[requiredArgs.size() + 2]; // + 2 for the return type and receiver parameter type
+
+        // Retrieve return types from method definition and method call
+
+        guardSatisfiedIndex[0] = -1;
+
+        AnnotatedTypeMirror methodDefinitionReturn = null;
+        AnnotatedTypeMirror methodCallReturn = null;
+
+        if (invokedMethod.getElement().getKind() != ElementKind.CONSTRUCTOR) {
+            methodDefinitionReturn = invokedMethod.getReturnType().getErased();
+            if (methodDefinitionReturn != null && methodDefinitionReturn.hasAnnotation(checkerGuardSatisfiedClass)) {
+                guardSatisfiedIndex[0] = AnnotationUtils.
+                        getElementValue(methodDefinitionReturn.getAnnotation(checkerGuardSatisfiedClass), "value", Integer.class, true);
+                methodCallReturn = atypeFactory.getAnnotatedType(node);
+            }
+        }
+
+        // Retrieve receiver types from method definition and method call
+
+        guardSatisfiedIndex[1] = -1;
+
+        AnnotatedTypeMirror methodDefinitionReceiver = null;
+        AnnotatedTypeMirror methodCallReceiver = null;
+
+        ExecutableElement invokedMethodElement = invokedMethod.getElement();
+        if (!ElementUtils.isStatic(invokedMethodElement) && !TreeUtils.isSuperCall(node)) {
+            if (invokedMethod.getElement().getKind() != ElementKind.CONSTRUCTOR) {
+                methodDefinitionReceiver = invokedMethod.getReceiverType().getErased();
+                if (methodDefinitionReceiver != null && methodDefinitionReceiver.hasAnnotation(checkerGuardSatisfiedClass)) {
+                    guardSatisfiedIndex[1] = AnnotationUtils.
+                            getElementValue(methodDefinitionReceiver.getAnnotation(checkerGuardSatisfiedClass), "value", Integer.class, true);
+                    methodCallReceiver = atypeFactory.getReceiverType(node);
+                }
+            }
+        }
+
+        // Retrieve formal parameter types from the method definition
+
+        for (int i = 0; i < requiredArgs.size(); i++) {
+            guardSatisfiedIndex[i+2] = -1;
+
+            AnnotatedTypeMirror arg = requiredArgs.get(i);
+
+            if (arg.hasAnnotation(checkerGuardSatisfiedClass)) {
+                guardSatisfiedIndex[i+2] = AnnotationUtils.getElementValue(arg.getAnnotation(checkerGuardSatisfiedClass), "value", Integer.class, true);
+            }
+        }
+
+        // Combine all of the actual parameters into one list of AnnotationMirrors
+
+        ArrayList<AnnotationMirror> passedArgAnnotations = new ArrayList<AnnotationMirror>(guardSatisfiedIndex.length); // Not necessary to pass guardSatisfiedIndex.length, but it is known, so why not.
+        passedArgAnnotations.add(methodCallReturn == null ? null : methodCallReturn.getAnnotationInHierarchy(GUARDEDBYINACCESSIBLE));
+        passedArgAnnotations.add(methodCallReceiver == null ? null : methodCallReceiver.getAnnotationInHierarchy(GUARDEDBYINACCESSIBLE));
+        for(ExpressionTree tree : node.getArguments()) {
+            passedArgAnnotations.add(atypeFactory.getAnnotatedType(tree).getAnnotationInHierarchy(GUARDEDBYINACCESSIBLE));
+        }
+
+        // Perform the validity check and issue an error if not valid.
+
+        for (int i = 0; i < guardSatisfiedIndex.length; i++) {
+            if (guardSatisfiedIndex[i] != -1) {
+                for (int j = i + 1; j < guardSatisfiedIndex.length; j++) {
+                    if (guardSatisfiedIndex[i] != -1 &&
+                        guardSatisfiedIndex[i] == guardSatisfiedIndex[j]) {
+                        // The @GuardedBy annotations must be identical on the corresponding actual parameters.
+                        AnnotationMirror anno1 = passedArgAnnotations.get(i);
+                        AnnotationMirror anno2 = passedArgAnnotations.get(j);
+                        if (anno1 != null && anno2 != null) {
+                            if (!atypeFactory.getQualifierHierarchy().isSubtype(anno1, anno2) ||
+                                !atypeFactory.getQualifierHierarchy().isSubtype(anno2, anno1)) {
+                                // TODO: allow these strings to be localized
+
+                                String formalParam1 = null;
+
+                                if (i == 0) {
+                                    formalParam1 = "The return type";
+                                } else if (i == 1){
+                                    formalParam1 = "The receiver type";
+                                } else {
+                                    formalParam1 = "Parameter #" + (i-1); // -1, not -2, so the index is 1-based
+                                }
+
+                                String formalParam2 = null;
+
+                                if (j == 1){
+                                    formalParam2 = "the receiver type";
+                                } else {
+                                    formalParam2 = "parameter #" + (j-1); // -1, not -2, so the index is 1-based
+                                }
+
+                                checker.report(Result.failure(
+                                        "guardsatisfied.parameters.must.match",
+                                        formalParam1, formalParam2, invokedMethod.toString(), guardSatisfiedIndex[i], anno1, anno2), node);
+                            }
+                        }
+                    }
+                }
+            }
         }
 
         return super.visitMethodInvocation(node, p);

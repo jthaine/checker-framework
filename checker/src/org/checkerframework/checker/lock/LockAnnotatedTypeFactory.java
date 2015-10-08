@@ -107,7 +107,7 @@ public class LockAnnotatedTypeFactory
                    AnnotationUtils.areSameIgnoringValues(am, JAVAXGUARDEDBY) ||
                    AnnotationUtils.areSameIgnoringValues(am, JCIPGUARDEDBY);
         }
-        
+
         @Override
         public boolean isSubtype(AnnotationMirror rhs, AnnotationMirror lhs) {
 
@@ -125,15 +125,43 @@ public class LockAnnotatedTypeFactory
                 return rhsValues.containsAll(lhsValues) && lhsValues.containsAll(rhsValues);
             }
 
-            // Remove values from @GuardedBy annotations (and use the Checker Framework's GuardedBy annotation, not JCIP's or Javax's)
-            // for further subtype checking.
+            boolean lhsIsGuardSatisfied = AnnotationUtils.areSameIgnoringValues(lhs, GUARDSATISFIED);
+            boolean rhsIsGuardSatisfied = AnnotationUtils.areSameIgnoringValues(rhs, GUARDSATISFIED);
 
-            return super.isSubtype(rhsIsGuardedBy ? GUARDEDBY : rhs, lhsIsGuardedBy ? GUARDEDBY : lhs);
+            if (lhsIsGuardSatisfied && rhsIsGuardSatisfied) {
+                // Two @GuardSatisfied annotations are considered subtypes of each other if and only if their indices match exactly.
+
+                int lhsIndex =
+                        AnnotationUtils.getElementValue(lhs, "value", Integer.class, true);
+                int rhsIndex =
+                    AnnotationUtils.getElementValue(rhs, "value", Integer.class, true);
+
+                return lhsIndex == rhsIndex;
+            }
+
+            // Remove values from @GuardedBy annotations (and use the Checker Framework's GuardedBy annotation, not JCIP's or Javax's)
+            // for further subtype checking. Remove indices from @GuardSatisfied annotations.
+
+            if (lhsIsGuardedBy) {
+                lhs = GUARDEDBY;
+            }
+            else if (lhsIsGuardSatisfied) {
+                lhs = GUARDSATISFIED;
+            }
+
+            if (rhsIsGuardedBy) {
+                rhs = GUARDEDBY;
+            }
+            else if (rhsIsGuardSatisfied) {
+                rhs = GUARDSATISFIED;
+            }
+
+            return super.isSubtype(rhs, lhs);
         }
-        
+
         // For caching results of glbs
         private Map<AnnotationPair, AnnotationMirror> glbs = null;
-        
+
         // Same contents as in AnnotatedTypeFactory.java
         @Override
         public AnnotationMirror greatestLowerBound(AnnotationMirror a1, AnnotationMirror a2) {
@@ -145,7 +173,7 @@ public class LockAnnotatedTypeFactory
             AnnotationPair pair = new AnnotationPair(a1, a2);
             return glbs.get(pair);
         }
-        
+
         // Same contents as in AnnotatedTypeFactory.java
         private Map<AnnotationPair, AnnotationMirror>  calculateGlbs() {
             Map<AnnotationPair, AnnotationMirror> newglbs = new HashMap<AnnotationPair, AnnotationMirror>();
@@ -217,7 +245,7 @@ public class LockAnnotatedTypeFactory
                 }
             }
             return outset;
-        }        
+        }
 
     }
 
@@ -229,14 +257,14 @@ public class LockAnnotatedTypeFactory
         SIDEEFFECTFREE,
         PURE
     }
-    
+
     /**
      * Given side effect annotations a and b, returns true if a
      * is a strictly weaker side effect annotation than b.
      */
     boolean isWeaker(SideEffectAnnotation a, SideEffectAnnotation b) {
         boolean weaker = false;
-        
+
         switch(b) {
             case MAYRELEASELOCKS:
                 break;
@@ -276,7 +304,7 @@ public class LockAnnotatedTypeFactory
                 }
                 break;
         }
-        
+
         return weaker;
     }
 
