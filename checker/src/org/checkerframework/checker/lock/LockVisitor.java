@@ -575,6 +575,10 @@ public class LockVisitor extends BaseTypeVisitor<LockAnnotatedTypeFactory> {
             AnnotatedTypes.expandVarArgs(atypeFactory, invokedMethod, node.getArguments());
 
         // Index on @GuardSatisfied at each location. -1 when no @GuardSatisfied annotation was present.
+        // Note that @GuardSatisfied with no index is normally represented as having index 0.
+        // We would like to ignore it for these purposes so we convert it to -1.
+        // Unfortunately we don't distinguish between @GS and @GS(0), so if the user wrote @GS(0) we will
+        // lose that information. The user needs to write @GS starting with index 1.
         // The first two elements of the array are reserved for the return type and the receiver.
         int guardSatisfiedIndex[] = new int[requiredArgs.size() + 2]; // + 2 for the return type and receiver parameter type
 
@@ -595,7 +599,7 @@ public class LockVisitor extends BaseTypeVisitor<LockAnnotatedTypeFactory> {
         }
 
         // Retrieve receiver types from method definition and method call
-
+        
         guardSatisfiedIndex[1] = -1;
 
         AnnotatedTypeMirror methodDefinitionReceiver = null;
@@ -624,6 +628,14 @@ public class LockVisitor extends BaseTypeVisitor<LockAnnotatedTypeFactory> {
                 guardSatisfiedIndex[i+2] = AnnotationUtils.getElementValue(arg.getAnnotation(checkerGuardSatisfiedClass), "value", Integer.class, true);
             }
         }
+        
+        // Set any indices of 0 to -1
+        
+        for(int i = 0; i < guardSatisfiedIndex.length; i++) {
+            if (guardSatisfiedIndex[i] == 0) {
+                guardSatisfiedIndex[i] = -1;
+            }
+        }
 
         // Combine all of the actual parameters into one list of AnnotationMirrors
 
@@ -636,7 +648,9 @@ public class LockVisitor extends BaseTypeVisitor<LockAnnotatedTypeFactory> {
 
         // Perform the validity check and issue an error if not valid.
 
-        for (int i = 0; i < guardSatisfiedIndex.length; i++) {
+        
+        // TODO: temporarily skip i == 0, the return type, as that is not working as expected yet.
+        for (int i = 1 /* should be 0 */; i < guardSatisfiedIndex.length; i++) {
             if (guardSatisfiedIndex[i] != -1) {
                 for (int j = i + 1; j < guardSatisfiedIndex.length; j++) {
                     if (guardSatisfiedIndex[i] != -1 &&

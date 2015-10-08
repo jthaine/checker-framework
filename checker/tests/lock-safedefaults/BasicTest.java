@@ -33,6 +33,8 @@ public class BasicTest {
     void testFields() {
         //:: error: (assignment.type.incompatible) :: error: (argument.type.incompatible)
         p1 = myUnannotatedMethod(o1);
+        // Ignore the following error as it is expected.
+        //:: error: (guardsatisfied.parameters.must.match)
         myAnnotatedMethod(o1);
 
         // Now test that an unannotated method behaves as if it's annotated with @MayReleaseLocks
@@ -50,6 +52,8 @@ public class BasicTest {
         Object o2 = new Object(), p2;
         //:: error: (assignment.type.incompatible) :: error: (argument.type.incompatible)
         p2 = myUnannotatedMethod(o2);
+        // Ignore the following error as it is expected.
+        //:: error: (guardsatisfied.parameters.must.match)
         myAnnotatedMethod(o2);
 
         // Now test that an unannotated method behaves as if it's annotated with @MayReleaseLocks
