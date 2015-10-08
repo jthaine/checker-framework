@@ -38,7 +38,7 @@ import org.checkerframework.framework.qual.TypeQualifier;
 @Documented
 @DefaultFor({DefaultLocation.RECEIVERS, DefaultLocation.PARAMETERS})
 @Retention(RetentionPolicy.RUNTIME)
-@Target({  ElementType.FIELD, ElementType.PARAMETER, ElementType.LOCAL_VARIABLE, ElementType.TYPE_USE })
+@Target({  ElementType.PARAMETER, ElementType.LOCAL_VARIABLE, ElementType.TYPE_USE })
 public @interface GuardSatisfied {
     /**
      * The index on the polymorphic qualifier.

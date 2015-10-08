@@ -24,6 +24,12 @@ import org.checkerframework.javacutil.AnnotationUtils;
  */
 public class LockStore extends CFAbstractStore<CFValue, LockStore> {
 
+    /** If true, indicates that the store refers to a point in the code
+      * inside a constructor or initializer. This is useful because
+      * constructors and initializers are special with regard to
+      * the set of locks that is considered to be held. For example,
+      * 'this' is considered to be held inside a constructor.
+      */ 
     protected boolean inConstructorOrInitializer = false;
 
     protected final AnnotationMirror LOCKHELD = AnnotationUtils.fromClass(analysis.getTypeFactory().getElementUtils(), LockHeld.class);
@@ -53,13 +59,8 @@ public class LockStore extends CFAbstractStore<CFValue, LockStore> {
      * Insert an annotation exactly, without regard to whether an annotation was already present.
      */
     public void insertExactValue(FlowExpressions.Receiver r, AnnotationMirror a) {
-        insertExactValue(r, analysis.createSingleAnnotationValue(a, r.getType()));
-    }
+        CFValue value = analysis.createSingleAnnotationValue(a, r.getType());
 
-    /*
-     * Insert an annotation exactly, without regard to whether an annotation was already present.
-     */
-    public void insertExactValue(FlowExpressions.Receiver r, CFValue value) {
         if (value == null) {
             // No need to insert a null abstract value because it represents
             // top and top is also the default value.

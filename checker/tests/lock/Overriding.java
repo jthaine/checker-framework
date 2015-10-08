@@ -48,7 +48,7 @@ public class Overriding {
 
     class SubClass extends SuperClass {
         @Holding({"a", "b"})  // error
-        //:: error: (override.holding.invalid)
+        //:: error: (contracts.precondition.override.invalid)
         @Override void guardedByOne() { }
 
         @Holding({"a", "b"})
@@ -91,5 +91,18 @@ public class Overriding {
 
         @SideEffectFree
         @Override void lfMethod3(){ }
+    }
+
+    // Test overriding @Holding with JCIP @GuardedBy.
+    class SubClassJcip extends SuperClass {
+        @net.jcip.annotations.GuardedBy({"a", "b"})  // error
+        //:: error: (contracts.precondition.override.invalid)
+        @Override void guardedByOne() { }
+
+        @net.jcip.annotations.GuardedBy({"a", "b"})
+        @Override void guardedByTwo() { }
+
+        @net.jcip.annotations.GuardedBy({"a", "b"})
+        @Override void guardedByThree() { }
     }
 }

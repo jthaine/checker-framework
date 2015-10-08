@@ -48,7 +48,6 @@ public class LockTransfer extends
         super(analysis);
         this.analysis = analysis;
         this.checker = checker;
-        this.checker.setAnalysis(analysis);
 
         LOCKHELD = AnnotationUtils.fromClass(analysis.getTypeFactory()
                 .getElementUtils(), LockHeld.class);

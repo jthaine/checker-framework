@@ -51,21 +51,8 @@ public class LockAnnotatedTypeFactory
     /** Annotation constants */
     protected final AnnotationMirror LOCKHELD, LOCKPOSSIBLYHELD, SIDEEFFECTFREE, GUARDEDBY, JCIPGUARDEDBY, JAVAXGUARDEDBY, GUARDSATISFIED;
 
-    private final Class<? extends Annotation> checkerHoldingClass = Holding.class;
-
-    // Note that Javax and JCIP @GuardedBy is used on both methods and objects. For methods they are
-    // equivalent to the Checker Framework @Holding annotation.
-    private final Class<? extends Annotation> javaxGuardedByClass = javax.annotation.concurrent.GuardedBy.class;
-    private final Class<? extends Annotation> jcipGuardedByClass = net.jcip.annotations.GuardedBy.class;
-
-    private final Class<? extends Annotation> checkerLockingFreeClass = LockingFree.class;
-    private final Class<? extends Annotation> checkerReleasesNoLocksClass = ReleasesNoLocks.class;
-    private final Class<? extends Annotation> checkerMayReleaseLocksClass = MayReleaseLocks.class;
-    private final Class<? extends Annotation> sideEffectFreeClass = SideEffectFree.class;
-    private final Class<? extends Annotation> pureClass = Pure.class;
-
-    public LockAnnotatedTypeFactory(BaseTypeChecker checker, boolean useFlow) {
-        super(checker, useFlow);
+    public LockAnnotatedTypeFactory(BaseTypeChecker checker) {
+        super(checker, true);
 
         LOCKHELD = AnnotationUtils.fromClass(elements, LockHeld.class);
         LOCKPOSSIBLYHELD = AnnotationUtils.fromClass(elements, LockPossiblyHeld.class);
@@ -96,18 +83,6 @@ public class LockAnnotatedTypeFactory
     }
 
     @Override
-    protected void postInit() {
-        super.postInit();
-
-        addInheritedAnnotation(AnnotationUtils.fromClass(elements,
-                MayReleaseLocks.class));
-        addInheritedAnnotation(AnnotationUtils.fromClass(elements,
-                ReleasesNoLocks.class));
-        addInheritedAnnotation(AnnotationUtils.fromClass(elements,
-                LockingFree.class));
-    }
-
-    @Override
     public QualifierHierarchy createQualifierHierarchy(MultiGraphFactory factory) {
         return new LockQualifierHierarchy(factory);
     }
@@ -128,10 +103,6 @@ public class LockAnnotatedTypeFactory
         return getDeclAnnotation(elt, annoName, false);
     }
 
-    protected QualifierDefaults getQualifierDefaults() {
-        return defaults;
-    }
-
     class LockQualifierHierarchy extends MultiGraphQualifierHierarchy {
 
         public LockQualifierHierarchy(MultiGraphFactory f) {
@@ -142,6 +113,13 @@ public class LockAnnotatedTypeFactory
             return AnnotationUtils.areSameIgnoringValues(am, GUARDEDBY) ||
                    AnnotationUtils.areSameIgnoringValues(am, JAVAXGUARDEDBY) ||
                    AnnotationUtils.areSameIgnoringValues(am, JCIPGUARDEDBY);
+        }
+        
+        // TODO: it would be better to override AnnotationMirror.equals instead of needing
+        // this method, but that is not convenient given the current structure of the code.
+        @Override
+        protected boolean annotationMirrorsAreEqual(AnnotationMirror a1, AnnotationMirror a2) {
+            return (isGuardedBy(a1) && isGuardedBy(a2)) || super.annotationMirrorsAreEqual(a1, a2);
         }
 
         @Override
@@ -168,44 +146,60 @@ public class LockAnnotatedTypeFactory
         }
     }
 
-    // Returns the list of expressions specified in the @Holding (or equivalent) annotation on a method.
-    // Returns an empty list if such an annotation is not present.
-    protected List<String> methodHolding(ExecutableElement element) {
-        AnnotationMirror holding = getDeclAnnotation(element, checkerHoldingClass);
-        AnnotationMirror guardedBy
-            = getDeclAnnotation(element, jcipGuardedByClass);
-        AnnotationMirror guardedByJavax
-            = getDeclAnnotation(element, javaxGuardedByClass);
-
-        if (holding == null && guardedBy == null && guardedByJavax == null)
-            return Collections.emptyList();
-
-        List<String> locks = new ArrayList<String>();
-
-        if (holding != null) {
-            List<String> holdingValue = AnnotationUtils.getElementValueArray(holding, "value", String.class, false);
-            locks.addAll(holdingValue);
-        }
-        if (guardedBy != null) {
-            String guardedByValue = AnnotationUtils.getElementValue(guardedBy, "value", String.class, false);
-            locks.add(guardedByValue);
-        }
-        if (guardedByJavax != null) {
-            String guardedByValue = AnnotationUtils.getElementValue(guardedByJavax, "value", String.class, false);
-            locks.add(guardedByValue);
-        }
-
-        return locks;
-    }
-
-    // The side effect annotations processed by the Lock Checker,
-    // in order of increasingly strong guarantees.
+    // The side effect annotations processed by the Lock Checker.
     enum SideEffectAnnotation {
         MAYRELEASELOCKS,
         RELEASESNOLOCKS,
         LOCKINGFREE,
         SIDEEFFECTFREE,
         PURE
+    }
+    
+    /**
+     * Given side effect annotations a and b, returns true if a
+     * is a strictly weaker side effect annotation than b.
+     */
+    boolean isWeaker(SideEffectAnnotation a, SideEffectAnnotation b) {
+        boolean weaker = false;
+        
+        switch(b) {
+            case MAYRELEASELOCKS:
+                break;
+            case RELEASESNOLOCKS:
+                if (a == SideEffectAnnotation.MAYRELEASELOCKS) {
+                    weaker = true;
+                }
+                break;
+            case LOCKINGFREE:
+                switch(a) {
+                    case MAYRELEASELOCKS:
+                    case RELEASESNOLOCKS:
+                        weaker = true;
+                    default:
+                }
+                break;
+            case SIDEEFFECTFREE:
+                switch(a) {
+                    case MAYRELEASELOCKS:
+                    case RELEASESNOLOCKS:
+                    case LOCKINGFREE:
+                        weaker = true;
+                    default:
+                }
+                break;
+            case PURE:
+                switch(a) {
+                    case MAYRELEASELOCKS:
+                    case RELEASESNOLOCKS:
+                    case LOCKINGFREE:
+                    case SIDEEFFECTFREE:
+                        weaker = true;
+                    default:
+                }
+                break;
+        }
+        
+        return weaker;
     }
 
     // Indicates which side effect annotation is present on the given method.
@@ -219,11 +213,12 @@ public class LockAnnotatedTypeFactory
 
             boolean[] sideEffectAnnotationPresent = new boolean[countSideEffectAnnotations];
 
-            sideEffectAnnotationPresent[0] = getDeclAnnotationNoAliases(element, checkerMayReleaseLocksClass) != null;
-            sideEffectAnnotationPresent[1] = getDeclAnnotationNoAliases(element, checkerReleasesNoLocksClass) != null;
-            sideEffectAnnotationPresent[2] = getDeclAnnotationNoAliases(element, checkerLockingFreeClass) != null;
-            sideEffectAnnotationPresent[3] = getDeclAnnotationNoAliases(element, sideEffectFreeClass) != null;
-            sideEffectAnnotationPresent[4] = getDeclAnnotationNoAliases(element, pureClass) != null;
+            // It is important that these are ordered from weaker to stronger. A for loop below relies on this.
+            sideEffectAnnotationPresent[0] = getDeclAnnotationNoAliases(element, MayReleaseLocks.class) != null;
+            sideEffectAnnotationPresent[1] = getDeclAnnotationNoAliases(element, ReleasesNoLocks.class) != null;
+            sideEffectAnnotationPresent[2] = getDeclAnnotationNoAliases(element, LockingFree.class) != null;
+            sideEffectAnnotationPresent[3] = getDeclAnnotationNoAliases(element, SideEffectFree.class) != null;
+            sideEffectAnnotationPresent[4] = getDeclAnnotationNoAliases(element, Pure.class) != null;
             assert(countSideEffectAnnotations == 5); // If this assertion fails, the assignments above need to be updated.
 
             int count = 0;
@@ -235,7 +230,7 @@ public class LockAnnotatedTypeFactory
             }
 
             if (count == 0) {
-                return getQualifierDefaults().applyUnannotatedDefaults(element) ?
+                return defaults.applyUnannotatedDefaults(element) ?
                     SideEffectAnnotation.MAYRELEASELOCKS :
                     SideEffectAnnotation.RELEASESNOLOCKS;
             }
