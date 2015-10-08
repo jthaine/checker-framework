@@ -25,8 +25,6 @@ import org.checkerframework.framework.type.AnnotatedTypeFactory;
 import org.checkerframework.javacutil.AnnotationUtils;
 import org.checkerframework.javacutil.Pair;
 
-import com.sun.tools.javac.code.Type;
-
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -751,7 +749,7 @@ public abstract class CFAbstractStore<V extends CFAbstractValue<V>, S extends CF
      * <li value="1">Remove any abstract values for field accesses <em>b.g</em>
      * where {@code localVar} might alias any expression in the receiver
      * <em>b</em>.
-     * <li value="2">Remove any abstract values for array accesses <em>a[i]</em>
+     * <li value="1">Remove any abstract values for array accesses <em>a[i]</em>
      * where {@code localVar} might alias the receiver <em>a</em>.
      * <li value="3">Remove any information about pure method calls where the
      * receiver or any of the parameters contains {@code localVar}.
