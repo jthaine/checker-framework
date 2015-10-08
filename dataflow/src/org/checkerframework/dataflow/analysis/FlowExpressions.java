@@ -478,7 +478,7 @@ public class FlowExpressions {
                 return false;
             }
             LocalVariable other = (LocalVariable) obj;
-            return other.element.equals(element);
+            return other.toString().equals(toString());
         }
 
         public Element getElement() {
@@ -487,7 +487,7 @@ public class FlowExpressions {
 
         @Override
         public int hashCode() {
-            return HashCodeUtils.hash(element);
+            return HashCodeUtils.hash(toString());
         }
 
         @Override

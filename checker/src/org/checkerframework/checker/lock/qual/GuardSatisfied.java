@@ -4,8 +4,6 @@ import java.lang.annotation.*;
 
 import org.checkerframework.framework.qual.DefaultFor;
 import org.checkerframework.framework.qual.DefaultLocation;
-import org.checkerframework.framework.qual.DefaultQualifierInHierarchy;
-import org.checkerframework.framework.qual.PreconditionAnnotation;
 import org.checkerframework.framework.qual.SubtypeOf;
 import org.checkerframework.framework.qual.TypeQualifier;
 
@@ -36,11 +34,11 @@ import org.checkerframework.framework.qual.TypeQualifier;
  * @checker_framework.manual #lock-checker Lock Checker
  */
 @TypeQualifier
-@SubtypeOf(GuardedByInaccessible.class) // TODO: As an implementation detail, should this be in its own hierarchy?
+@SubtypeOf(GuardedByInaccessible.class) // TODO: Should @GuardSatisfied be in its own hierarchy?
 @Documented
-//@DefaultFor({DefaultLocation.RECEIVERS, DefaultLocation.PARAMETERS})
+@DefaultFor({DefaultLocation.RECEIVERS, DefaultLocation.PARAMETERS})
 @Retention(RetentionPolicy.RUNTIME)
-@Target({  ElementType.FIELD, ElementType.PARAMETER, ElementType.LOCAL_VARIABLE, ElementType.TYPE_USE })
+@Target({  ElementType.PARAMETER, ElementType.LOCAL_VARIABLE, ElementType.TYPE_USE })
 public @interface GuardSatisfied {
     /**
      * The index on the polymorphic qualifier.

@@ -6,6 +6,8 @@ import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
+import org.checkerframework.framework.qual.InheritedAnnotation;
+
 /**
  * It is unknown whether the method, or one of the methods it calls, releases locks
  * that were held prior to the method being called.
@@ -23,6 +25,7 @@ import java.lang.annotation.Target;
  */
 @Documented
 @Retention(RetentionPolicy.RUNTIME)
+@InheritedAnnotation
 @Target({ ElementType.METHOD, ElementType.CONSTRUCTOR })
 public @interface MayReleaseLocks {
 }
