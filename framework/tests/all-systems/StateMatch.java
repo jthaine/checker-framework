@@ -1,3 +1,4 @@
+import org.checkerframework.checker.lock.qual.GuardSatisfied;
 
 public class StateMatch {
     private int num_elts = 0;
@@ -9,7 +10,7 @@ public class StateMatch {
         if (!(state instanceof double [][]))
             System.out.println ("");
 
-        double[][] e = (double[][]) state;
+        double @GuardSatisfied [][] e = (double @GuardSatisfied [][]) state;
         boolean match = false;
         if (elts[0] == e[0]) {
             // When analyzing this statement, we get an exception about taking

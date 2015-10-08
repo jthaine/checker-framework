@@ -1,4 +1,3 @@
-
 interface Supplier<R> {
     R supply();
 }
@@ -18,11 +17,13 @@ interface BiFunction<T, U, R> {
 //@SuppressWarnings("javari")
 class Super {
 
+    @SuppressWarnings("lock")
     Object func1 (Object o) { return o; }
     <T> T func2 (T o) { return o; }
 
     class Sub extends Super {
         void context() {
+            @SuppressWarnings("lock")
             Function<Object, Object> f1 = super::func1;
             // TODO: type argument inference
             //:: warning: (methodref.inference.unimplemented)
@@ -52,10 +53,11 @@ class Unbound {
     <T> T func1 (T o) { return o; }
 
     void context() {
+        @SuppressWarnings("lock")
         Function<String, String> f1 = String::toString;
         // TODO: type argument inference
         BiFunction<Unbound, String, String> f2 = Unbound::func1;
-        @SuppressWarnings("nullness:type.argument.type.incompatible")
+        @SuppressWarnings({"nullness:type.argument.type.incompatible", "lock"})
         BiFunction<? extends Unbound, ? super Integer, ? extends Integer> f3 = Unbound::<Integer>func1;
     }
 }
@@ -66,9 +68,11 @@ abstract class UnboundWithArg<U> {
     void context() {
         // TODO: type argument inference
         Function<UnboundWithArg<String>, String> f1 = UnboundWithArg::func1;
+        @SuppressWarnings("lock")
         Function<UnboundWithArg<String>, String> f2 = UnboundWithArg<String>::func1;
         // TODO: type argument inference
         Function<? extends UnboundWithArg<String>, String> f3 = UnboundWithArg::func1;
+        @SuppressWarnings("lock")
         Function<? extends UnboundWithArg<String>, String> f4 = UnboundWithArg<String>::func1;
     }
 }
@@ -113,6 +117,7 @@ class BoundWithArg<U> {
 @SuppressWarnings("javari")
 class Outer {
     void context(Outer other) {
+        @SuppressWarnings("lock")
         Supplier<Inner> f1 = Inner::new;
     }
     class Inner extends Outer {
@@ -124,7 +129,9 @@ class OuterWithArg {
     void context() {
         // TODO: type argument inference
         Supplier<Inner<String>> f1 = Inner::new;
+        @SuppressWarnings("lock")
         Supplier<? extends Inner<Number>> f2 = Inner<Number>::new;
+        @SuppressWarnings("lock")
         Supplier<? extends Inner<? extends Number>> f3 = Inner<Integer>::new;
 
     }
@@ -162,6 +169,7 @@ class TopLevelWithArg<T> {
 @SuppressWarnings({"oigj", "javari"})
 class ArrayType {
     void context() {
+        @SuppressWarnings("lock")
         Function<Integer, String[]> string = String[]::new;
         Function<String[], String[]> clone = String[]::clone;
         Function<String[], String> toString = String[]::toString;

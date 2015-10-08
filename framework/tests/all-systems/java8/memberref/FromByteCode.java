@@ -1,6 +1,7 @@
+import org.checkerframework.checker.lock.qual.GuardSatisfied;
 
 interface Function<T, R> {
-    R apply(T t);
+    R apply(@GuardSatisfied T t);
 }
 @SuppressWarnings("javari")
 class FromByteCode {

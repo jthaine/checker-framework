@@ -1,3 +1,4 @@
+import org.checkerframework.checker.lock.qual.GuardSatisfied;
 
 /**
  * Bound and unbound constraints.
@@ -43,7 +44,7 @@ class MyClass {
 @SuppressWarnings({"javari", "oigj"})
 class Outer {
     class Inner {
-        Inner(/*1*/ Outer Outer.this) { }
+        Inner(/*1*/ @GuardSatisfied Outer Outer.this) { }
         void context() {
             Supplier<String> o = Outer.super::toString;
         }

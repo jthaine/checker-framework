@@ -1,3 +1,5 @@
+import org.checkerframework.checker.lock.qual.GuardSatisfied;
+
 /*
  * This class is solely to set up complicated recursive bounds in order to ensure that the
  * bounds initializer creates bounds with the right structure
@@ -5,7 +7,7 @@
 
 interface List<ZZ> {
     ZZ getZZ();
-    void setZZ(ZZ ZZ);
+    void setZZ(@GuardSatisfied ZZ ZZ);
 }
 
 interface Map<K,V> {
@@ -51,8 +53,9 @@ class CrazyGen2<TT extends List<EE>, EE extends Map<TT, TT>> {
         this.e2 = e2;
     }
 
+    @SuppressWarnings("lock:cast.unsafe")
     public void context() {
-        t2.setZZ(e2);
+        t2.setZZ((@GuardSatisfied EE) e2); // Cannot write @GuardSatisfied on a field, so casting it here.
         e2.setK(t2.getZZ().getK());
     }
 }
