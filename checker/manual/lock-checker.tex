@@ -85,8 +85,6 @@ This section describes the lock annotations you can write on types and methods.
   except method formal parameters (including the receiver parameter)
   if the programmer does not
   write an explicit locking type qualifier.
-  \textcolor{red}{JT: The best default for each location will be decided on after performing
-  additional experiments.}
 
 \item[\refqualclass{checker/lock/qual}{GuardedByInaccessible}]
   If a variable \<x> has type \code{@GuardedByInaccessible}, then
@@ -133,12 +131,10 @@ polymorphism, see Section~\ref{qualifier-polymorphism}.
   If a variable \<x> has type \code{@GuardSatisfied}, then all
   lock expressions for \<x>'s value are held.
 
-%  \code{@GuardSatisfied} is the default type qualifier for method
-%  formal parameters (including the receiver parameter)
-%  if the programmer does not
-%  write an explicit locking type qualifier.
-  \textcolor{red}{JT: The best default for each location will be decided on after performing
-  additional experiments.}
+  \code{@GuardSatisfied} is the default type qualifier for method
+  formal parameters (including the receiver parameter)
+  if the programmer does not
+  write an explicit locking type qualifier.
   See Section~\ref{lock-checker-polymorphism}
   for an example of a use of \code{@GuardSatisfied}.
 
@@ -153,9 +149,8 @@ polymorphism, see Section~\ref{qualifier-polymorphism}.
 \includeimage{lock-guardedby}{3cm}
 \caption{The subtyping relationship of the Lock Checker's qualifiers.
 \code{@GuardedBy(\{\})} is the default type qualifier for all unannotated
-types, except that \code{@GuardSatisfied} is the default for formal parameters.
-\textcolor{red}{JT: The best default for each location will be decided on after performing
-additional experiments.}
+types, except that \code{@GuardSatisfied} is the default for formal parameters
+(including receiver parameters).
 Qualifiers in gray
 are used internally by the type system but should never be written by a
 programmer.
