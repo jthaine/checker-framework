@@ -14,14 +14,22 @@ import org.checkerframework.checker.lock.qual.LockPossiblyHeld;
 import org.checkerframework.checker.lock.qual.LockingFree;
 import org.checkerframework.checker.lock.qual.MayReleaseLocks;
 import org.checkerframework.checker.lock.qual.ReleasesNoLocks;
+import org.checkerframework.checker.nullness.KeyForPropagationTreeAnnotator;
+import org.checkerframework.checker.nullness.KeyForPropagator;
 import org.checkerframework.dataflow.qual.Pure;
 import org.checkerframework.dataflow.qual.SideEffectFree;
 import org.checkerframework.framework.type.*;
+import org.checkerframework.framework.type.treeannotator.ImplicitsTreeAnnotator;
+import org.checkerframework.framework.type.treeannotator.ListTreeAnnotator;
+import org.checkerframework.framework.type.treeannotator.PropagationTreeAnnotator;
+import org.checkerframework.framework.type.treeannotator.TreeAnnotator;
 import org.checkerframework.framework.util.MultiGraphQualifierHierarchy;
 import org.checkerframework.framework.util.MultiGraphQualifierHierarchy.MultiGraphFactory;
 import org.checkerframework.javacutil.AnnotationUtils;
 import org.checkerframework.javacutil.ErrorReporter;
 import org.checkerframework.javacutil.Pair;
+
+import com.sun.source.tree.Tree.Kind;
 
 import java.util.HashMap;
 import java.util.Iterator;
@@ -96,13 +104,22 @@ public class LockAnnotatedTypeFactory
         return new LockTransfer((LockAnalysis) analysis,(LockChecker)this.checker);
     }
 
+    @Override
+    protected TreeAnnotator createTreeAnnotator() {
+        return new ListTreeAnnotator(
+               new LockPropagationTreeAnnotator(this),
+               new ImplicitsTreeAnnotator(this)
+        );
+    }    
+    
     class LockQualifierHierarchy extends MultiGraphQualifierHierarchy {
 
         public LockQualifierHierarchy(MultiGraphFactory f) {
             super(f, LOCKHELD);
         }
+        
 
-        private boolean isGuardedBy(AnnotationMirror am) {
+        boolean isGuardedBy(AnnotationMirror am) {
             return AnnotationUtils.areSameIgnoringValues(am, GUARDEDBY) ||
                    AnnotationUtils.areSameIgnoringValues(am, JAVAXGUARDEDBY) ||
                    AnnotationUtils.areSameIgnoringValues(am, JCIPGUARDEDBY);
@@ -401,5 +418,22 @@ public class LockAnnotatedTypeFactory
         public String toString() {
             return "AnnotationPair(" + a1 + ", " + a2 + ")";
         }
+    }
+    
+    // TODO: Find the appropriate term instead of "generative"
+    // Indicates that the result of the operation is a new object or primitive value.
+    boolean isGenerativeBinaryOperator(Kind opKind) {
+        switch(opKind){
+            case PLUS:
+            case MINUS:
+            case MULTIPLY:
+            case DIVIDE:
+            case CONDITIONAL_OR:
+            case CONDITIONAL_AND:
+                return true;
+            default:
+        }
+
+        return false;
     }
 }

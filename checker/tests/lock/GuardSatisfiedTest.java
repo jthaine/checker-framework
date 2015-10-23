@@ -44,17 +44,14 @@ public class GuardSatisfiedTest {
        // Test the receiver type matching a parameter
 
        // TODO: these argument type incompatible errors are due to a limitation in the code - fix them.
-       // TODO: we also expect contracts.precondition.not.satisfied.field
        //:: error: (argument.type.incompatible)
        methodToCall3(q);
-       //  TODO expect an error contracts.precondition.not.satisfied.field - it is probably getting swallowed
-       //:: error: (guardsatisfied.parameters.must.match)
+       //:: error: (guardsatisfied.parameters.must.match) :: error: (contracts.precondition.not.satisfied.field)
        methodToCall3(p);
        synchronized(lock1) {
            //:: error: (argument.type.incompatible)
            methodToCall3(q);
-           //  TODO expect an error contracts.precondition.not.satisfied.field - it is probably getting swallowed
-           //:: error: (guardsatisfied.parameters.must.match)
+           //:: error: (guardsatisfied.parameters.must.match) :: error: (contracts.precondition.not.satisfied.field)
            methodToCall3(p);
            synchronized(lock2) {
                //:: error: (argument.type.incompatible)

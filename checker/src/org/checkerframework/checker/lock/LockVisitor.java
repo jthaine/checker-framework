@@ -57,6 +57,7 @@ import javax.lang.model.element.TypeElement;
 import javax.lang.model.type.TypeMirror;
 
 import com.sun.source.tree.ArrayAccessTree;
+import com.sun.source.tree.BinaryTree;
 import com.sun.source.tree.ClassTree;
 import com.sun.source.tree.ExpressionTree;
 import com.sun.source.tree.IdentifierTree;
@@ -273,6 +274,7 @@ public class LockVisitor extends BaseTypeVisitor<LockAnnotatedTypeFactory> {
         // TODO: Make the same behavior apply to @GuardedByInaccessible and document that in the manual.
         if (varType.hasAnnotation(GuardSatisfied.class)) {
             // TODO: Make sure the RHS can be @GuardSatisfied with a different index when matching method formal parameters to actual parameters.
+            // TODO: Ensure hasAnnotation considers aliases of GuardedBy. If not, then change all calls to hasAnnotation(GuardedBy.class).
             if (valueType.hasAnnotation(GuardedBy.class)) {
                 ExpressionTree tree = (ExpressionTree) valueTree;
 
@@ -845,5 +847,30 @@ public class LockVisitor extends BaseTypeVisitor<LockAnnotatedTypeFactory> {
                 }
             }
         }
+    }
+
+    private void checkPreconditionsOnOperand(ExpressionTree op) {
+        assert(op != null);
+        AnnotatedTypeMirror atm = atypeFactory.getAnnotatedType(op);
+        assert(atm != null);
+        
+        if (atm.hasAnnotation(GuardedBy.class)) {
+            checkPreconditions(op,
+                    TreeUtils.elementFromUse(op),
+                    op.getKind() == Tree.Kind.METHOD_INVOCATION,
+                    generatePreconditionsBasedOnGuards(atm, false));
+        }
+    }
+
+    @Override
+    public Void visitBinary(BinaryTree node, Void p) {
+        // TODO: Document in manual.
+        // TODO: Document that this must match the other method
+        if (atypeFactory.isGenerativeBinaryOperator(node.getKind())) {
+            checkPreconditionsOnOperand(node.getLeftOperand());
+            checkPreconditionsOnOperand(node.getRightOperand());
+        }
+
+        return super.visitBinary(node, p);
     }
 }
