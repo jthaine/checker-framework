@@ -1,10 +1,9 @@
-import org.checkerframework.checker.lock.qual.GuardedBy;
 
 //this is from plume-lib
 class TypeVarAndArrayRefinement {
 
 
-    @SuppressWarnings({"javari", "lock:cast.unsafe"})
+    @SuppressWarnings("javari")
     private <T extends Enum<T>> T getEnumValue(Class<T> enumType, String name) {
         T[] constants = enumType.getEnumConstants();
         if (constants == null)
@@ -16,6 +15,6 @@ class TypeVarAndArrayRefinement {
             if (constant.name().equalsIgnoreCase(name.replace('-', '_')))
                 return constant;
         // same error that's thrown by Enum.valueOf()
-        throw new IllegalArgumentException((@GuardedBy({}) String) ("No enum constant " + enumType.getCanonicalName() + "." + name));
+        throw new IllegalArgumentException("No enum constant " + enumType.getCanonicalName() + "." + name);
     }
 }

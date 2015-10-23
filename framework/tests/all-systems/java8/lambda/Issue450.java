@@ -1,5 +1,6 @@
 import java.lang.CharSequence;
 
+import org.checkerframework.checker.lock.qual.GuardedBy;
 import org.checkerframework.checker.lock.qual.GuardSatisfied;
 
 class Issue450 {
@@ -29,13 +30,11 @@ class Issue450 {
     public static void consumeStr(String str) {}
     public static void consumeStr2(String str) {}
 
-    @SuppressWarnings("lock:methodref.receiver.bound.invalid")
-    <E extends Consumer<String>> void context(E e, Sub s) {
+    <E extends Consumer<String>> void context(E e, @GuardedBy({}) Sub s) {
         new Issue450(Issue450::consumeStr);
 
         Consumer<String> cs1 = (false) ? Issue450::consumeStr2 : Issue450::consumeStr;
         Consumer<String> cs2 = (false) ? e : Issue450::consumeStr;
-        @SuppressWarnings("lock:assignment.type.incompatible")
         Top t = (false) ? s : Issue450::consumeStr;
 
         new Issue450(42, new Thread()::start);                   // Use lambda as a constructor argument

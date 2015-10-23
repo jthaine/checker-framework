@@ -5,6 +5,21 @@ import org.checkerframework.checker.lock.qual.GuardSatisfied;
  * bounds initializer creates bounds with the right structure
  */
 
+class CrazyGen4<TT extends List<EE>, EE extends Map<TT, TT>> {
+    TT t2;
+    EE e2;
+
+    public void context() {
+        t2.setZZ(e2);
+        e2.setK(t2.getZZ().getK());
+    }
+
+    public CrazyGen4(TT t2, EE e2) {
+        this.t2 = t2;
+        this.e2 = e2;
+    }
+}
+
 interface List<ZZ> {
     ZZ getZZ();
     void setZZ(@GuardSatisfied ZZ ZZ);
@@ -53,9 +68,8 @@ class CrazyGen2<TT extends List<EE>, EE extends Map<TT, TT>> {
         this.e2 = e2;
     }
 
-    @SuppressWarnings("lock:cast.unsafe")
     public void context() {
-        t2.setZZ((@GuardSatisfied EE) e2); // Cannot write @GuardSatisfied on a field, so casting it here.
+        t2.setZZ(e2);
         e2.setK(t2.getZZ().getK());
     }
 }
