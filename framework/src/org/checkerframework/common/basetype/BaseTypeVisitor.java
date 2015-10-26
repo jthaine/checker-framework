@@ -2352,6 +2352,13 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
         AnnotatedExecutableType overrider = atypeFactory.methodFromUse(
                 overriderTree, overridingElement, overridingType).first;
 
+        // TODO: Method type argument inference
+        // Update overridingType
+        AnnotatedDeclaredType overriderReceiverType = overrider.getReceiverType(); 
+        if (overriderReceiverType != null) {
+            overridingType = overriderReceiverType;
+        }
+        
         // TODO: Enable checks for method reference with inferred type arguments.
         // For now, error on mismatch of class or method type arguments.
         if (overridden.getTypeVariables().size() == 0) {
