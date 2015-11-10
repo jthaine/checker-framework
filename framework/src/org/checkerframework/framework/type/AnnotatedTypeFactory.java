@@ -2445,7 +2445,7 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
      */
     public Set<AnnotationMirror> getDeclAnnotations(Element elt) {
         if (cacheDeclAnnos.containsKey(elt)) {
-            //Found in cache, return result.
+            // Found in cache, return result.
             return cacheDeclAnnos.get(elt);
         }
 
@@ -2493,8 +2493,7 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
                 AnnotatedTypes.overriddenMethods(elements, this, elt);
 
         if (overriddenMethods != null) {
-            for (Map.Entry<AnnotatedDeclaredType, ExecutableElement>
-                    pair : overriddenMethods.entrySet()) {
+            for (Map.Entry<AnnotatedDeclaredType, ExecutableElement> pair : overriddenMethods.entrySet()) {
                 // Getting annotations from super implementation.
                 AnnotatedDeclaredType overriddenType = pair.getKey();
                 AnnotatedExecutableType overriddenMethod =
