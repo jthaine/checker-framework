@@ -82,9 +82,10 @@ This section describes the lock annotations you can write on types and methods.
   permitted only if the thread holds all the locks.
 
   \<@GuardedBy(\{\})> is the default type qualifier for all locations
-  except method formal parameters (including the receiver parameter)
   if the programmer does not
-  write an explicit locking type qualifier.
+  write an explicit locking type qualifier.  It is also the conservative
+  default type qualifier for all locations in unannotated libraries
+  (see \chapterpageref{annotating-libraries}).
 
 \item[\refqualclass{checker/lock/qual}{GuardedByInaccessible}]
   If a variable \<x> has type \code{@GuardedByInaccessible}, then
@@ -119,11 +120,11 @@ of a problem that would occur if this rule were relaxed.
 
 \paragraph{Polymorphic type qualifiers}
 
-\refqualclass{checker/lock/qual}{GuardSatisfied}{\small(\emph{index})}
-and
-\refqualclass{checker/interning/qual}{PolyGuardedBy}
-indicate qualifier polymorphism.  For a description of qualifier
-polymorphism, see Section~\ref{qualifier-polymorphism}.
+%\refqualclass{checker/lock/qual}{GuardSatisfied}{\small(\emph{index})}
+%and
+%\refqualclass{checker/interning/qual}{PolyGuardedBy}
+%indicates qualifier polymorphism.  For a description of qualifier
+%polymorphism, see Section~\ref{qualifier-polymorphism}.
 
 \begin{description}
 
@@ -131,17 +132,16 @@ polymorphism, see Section~\ref{qualifier-polymorphism}.
   If a variable \<x> has type \code{@GuardSatisfied}, then all
   lock expressions for \<x>'s value are held.
 
-  \code{@GuardSatisfied} is the default type qualifier for method
-  formal parameters (including the receiver parameter)
-  if the programmer does not
-  write an explicit locking type qualifier.
+  \code{@GuardSatisfied} is only allowed on primary annotations of
+  formal parameters, receivers and return types of method declarations.
+
   See Section~\ref{lock-checker-polymorphism}
   for an example of a use of \code{@GuardSatisfied}.
 
-\item[\refqualclass{checker/interning/qual}{PolyGuardedBy}]
-  It is unknown what the guards are or whether they are held.
-  An expression whose type is \code{@PolyGuardedBy}
-  cannot be dereferenced.
+%\item[\refqualclass{checker/interning/qual}{PolyGuardedBy}]
+%  It is unknown what the guards are or whether they are held.
+%  An expression whose type is \code{@PolyGuardedBy}
+%  cannot be dereferenced.
 
 \end{description}
 
@@ -149,8 +149,7 @@ polymorphism, see Section~\ref{qualifier-polymorphism}.
 \includeimage{lock-guardedby}{3cm}
 \caption{The subtyping relationship of the Lock Checker's qualifiers.
 \code{@GuardedBy(\{\})} is the default type qualifier for all unannotated
-types, except that \code{@GuardSatisfied} is the default for formal parameters
-(including receiver parameters).
+types.
 Qualifiers in gray
 are used internally by the type system but should never be written by a
 programmer.
@@ -230,11 +229,12 @@ described in Figure~\ref{fig-lock-guardedby-hierarchy}, the Lock Checker enforce
 the following additional rules.
 
 
-\paragraph{Assignments}
+\paragraph{Polymorphic assignments}
 
 \begin{description}
 
-\item[Polymorphic assignments]
+\item[\code{@GuardSatisfied}]
+
   The overall rules for polymorphic qualifiers are given in
   Section~\ref{qualifier-polymorphism}.  There is an additional constraint
   for assignments whose
@@ -242,32 +242,23 @@ the following additional rules.
   \<@GuardSatisfied>:  the assignment type-checks only if all locks
   mentioned in the right-hand side's \<@GuardedBy> type are currently held.
 
-\item[\code{@GuardSatisfied}]
+  Given a method with a formal parameter with type annotation \<@GuardSatisfied(index)>,
+  that parameter can be assigned to within that method's body: \<@GuardSatisfied(index)>
+  can only be re-assigned from a right-hand-side of identical \<@GuardSatisfied(index)> type.
+  A formal parameter with type annotation \<@GuardSatisfied> without an index cannot be
+  assigned to.
 
-  The Lock Checker ensures that for all \<@GuardSatisfied> with the same index, the
-  corresponding \code{@GuardedBy} annotations\textcolor{red}{MDE: Arguments have types, but arguments don't have annotations.}
-  at the call site all match exactly.\textcolor{red}{I don't understand the
-    motivation for this non-standard rule.  Other polymorphic types do not
-    place such a constraint on arguments:  the pseudo-assignment has to
-    type-check but the types do not have to be identical.  Why should this
-    one?}
-  Similarly, the Lock Checker ensures that for all \<@GuardSatisfied> with no index, the
-  corresponding \code{@GuardedBy} annotations at the call site all match exactly.
-
-\textcolor{red}{MDE:
-  Here is a counter-proposal to your specification of @GuardSatisfied
-  without an argument.
-  Conceptually, @GuardSatisfied must always be written with an argument.
-  @GuardSatisfied without an argument means use a fresh (that is, unique) identifier each time.
-  (This is different than other @Poly... types, where omitting the
-  identifier is shorthand for using the same argument each time, as you
-  described.)
-Assignments:
-  @GuardSatisfied(id) can be freely assigned at its declaration, so long as the right-hand side has all of its guards satisfied
-  @GuardSatisfied(id) can only be re-assigned from a right-hand-side of identical @GuardSatisfied(id) type}
-
+  When type checking a call to a method with a receiver, return type and/or formal parameters with types annotated with
+  \<@GuardSatisfied(index)>, the Lock Checker ensures that for all \<@GuardSatisfied> annotations
+  with the same index, the corresponding primary annotations in the \<@GuardedBy> hierarchy
+  of the types at the call site are subtypes of one another (in other words, the
+  least upper bound of the set is an exact match with one of the elements).
 
   See Section~\ref{lock-checker-polymorphism} for an example demonstrating this rule.
+
+  Note that if formal parameter types are
+  annotated with \<@GuardSatisfied> without an index, then those formal parameter
+  types are unrelated with regard to types in the \<@GuardedBy> hierarchy.
 
 \end{description}
 
@@ -285,14 +276,15 @@ Assignments:
 \item[Not \code{@GuardedBy} or \code{@GuardSatisfied}]
   An expression whose type is not annotated with \code{@GuardedBy} or
   \code{@GuardSatisfied} may not be dereferenced.
-  In particular, an expression of type \code{@PolyGuardedBy} may not be dereferenced.
+%  In particular, an expression of type \code{@PolyGuardedBy} may not be dereferenced.
 
 \end{description}
 
-\paragraph{Primitive types}
+\paragraph{Primitive types, boxed primitive types and Strings}
 
-Primitive types are treated as being annotated with \<@GuardedBy(\{\})>.
-It is an error for the programmer to annotate any primitive type with an annotation from
+Primitive types, boxed primitive types (such as \<java.lang.Integer>), and type \<java.lang.String>
+are treated as being annotated with \<@GuardedBy(\{\})>.
+It is an error for the programmer to annotate any of these types with an annotation from
 the \<@GuardedBy> type hierarchy.
 
 %  Primitive values are not guarded.  Instead, the variables that store them are.
@@ -388,18 +380,12 @@ the \<@GuardedBy> type hierarchy.
 \end{description}
 
 
-\subsection{Polymorphism and handling call sites with different types\label{lock-checker-polymorphism}}
+\subsection{Polymorphism and method formal parameters with unknown guards\label{lock-checker-polymorphism}}
 
-The polymorphic \code{@GuardSatisfied} type annotation allows a method
-to be called with different \code{@GuardedBy} annotations on the parameters
-and receiver at each call site.
-
-\textcolor{red}{MDE:  This section's title, and the topic sentence, talk
-  about handling multiple call sites, but the section never gives an
-  example of that.  Therefore, the section seems to ramble and never
-  address its topic.  Readers will not be able to follow it.  I think it
-  needs to be rewritten.}
-
+The polymorphic \code{@GuardSatisfied} type annotation allows a method body
+to dereference the method's formal parameters even if the
+\code{@GuardedBy} annotations on the actual parameters are unknown at
+the method declaration site.
 
 Consider the following example:
 
@@ -426,7 +412,8 @@ Clearly the declaration has no notion of any specific locks that the receiver
 and the \code{str} parameter might be guarded by, such as \code{lock1} and \code{lock2}.
 In order for the example to type check, the declaration needs to be annotated
 to indicate that it is safe to provide a receiver and a parameter guarded by
-arbitrary sets of locks, provided that those locks are held at the method
+arbitrary sets of locks, regardless of any dereferences of the receiver and parameter
+that the method body of \code{append} may perform, provided that those locks are held at the method
 call site.
 
 The documentation for \sunjavadoc{java/lang/StringBuffer.html\#append-java.lang.String-}{StringBuffer.append(String str)}
@@ -808,52 +795,7 @@ extra synchronized block.  Here are reasons:
 \end{itemize}
 
 
-\section{Other lock annotations\label{lock-other-annotations}}
-
-The Checker Framework's lock annotations are similar to annotations used
-elsewhere.
-
-If your code is already annotated with a different lock
-annotation, you can reuse that effort.  The Checker Framework comes with
-cleanroom re-implementations of annotations from other tools.  It treats
-them exactly as if you had written the corresponding annotation from the
-Lock Checker, as described in Figure~\ref{fig-lock-refactoring}.
-
-
-% These lists should be kept in sync with LockAnnotatedTypeFactory.java .
-\begin{figure}
-\begin{center}
-% The ~ around the text makes things look better in Hevea (and not terrible
-% in LaTeX).
-
-\begin{tabular}{ll}
-\begin{tabular}{|l|}
-\hline
- ~net.jcip.annotations.GuardedBy~ \\ \hline
- ~javax.annotation.concurrent.GuardedBy~ \\ \hline
-\end{tabular}
-&
-$\Rightarrow$
-~org.checkerframework.checker.lock.qual.GuardedBy~
-\end{tabular}
-\end{center}
-%BEGIN LATEX
-\vspace{-1.5\baselineskip}
-%END LATEX
-\caption{Correspondence between other lock annotations and the
-  Checker Framework's annotations.}
-\label{fig-lock-refactoring}
-\end{figure}
-
-Alternately, the Checker Framework can process those other annotations (as
-well as its own, if they also appear in your program).  The Checker
-Framework has its own definition of the annotations on the left side of
-Figure~\ref{fig-lock-refactoring}, so that they can be used as type
-annotations.  The Checker Framework interprets them according to the right
-side of Figure~\ref{fig-lock-refactoring}.
-
-
-\subsection{Relationship to annotations in \emph{Java Concurrency in Practice}\label{lock-jcip-annotations}}
+\section{Relationship to annotations in \emph{Java Concurrency in Practice}\label{lock-jcip-annotations}}
 
 The book \href{http://jcip.net/}{\emph{Java Concurrency in Practice}}~\cite{Goetz2006} defines a
 \href{http://jcip.net.s3-website-us-east-1.amazonaws.com/annotations/doc/net/jcip/annotations/GuardedBy.html}{\code{@GuardedBy}} annotation that is the inspiration for ours.  The book's
